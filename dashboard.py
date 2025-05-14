@@ -6,7 +6,26 @@ from matplotlib.patches import Wedge
 import numpy as np
 
 # --- Indlæs og forbered data ---
-df = pd.read_excel("Google Ads - Dashboard.xlsx", sheet_name="Mersalg")
+import gspread
+from gspread_dataframe import get_as_dataframe
+from oauth2client.service_account import ServiceAccountCredentials
+
+# Opsætning af adgang
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+from google.oauth2 import service_account
+
+creds_dict = st.secrets["service_account"]
+credentials = service_account.Credentials.from_service_account_info(creds_dict, scopes=scope)
+client = gspread.authorize(credentials)
+client = gspread.authorize(creds)
+
+# Åbn ark – erstat med dit eget Sheet ID
+SHEET_ID = "1qGfpJ5wTqLAFtDmKaauOXouAwMKWhIBg9bIyWPEbkzc"  # kun ID-delen fra URL
+worksheet = client.open_by_key(SHEET_ID).worksheet("Mersalg")
+df = get_as_dataframe(worksheet, evaluate_formulas=True)
+
+# Fjern tomme rækker
+df = df.dropna(how='all')
 df = df[['Produkt', 'Pris', 'Dato for salg', 'Q2 Mål']].dropna(subset=['Produkt', 'Pris'])
 df['Dato for salg'] = pd.to_datetime(df['Dato for salg'])
 df['Uge'] = df['Dato for salg'].dt.isocalendar().week
