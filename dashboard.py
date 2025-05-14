@@ -17,7 +17,9 @@ from google.oauth2 import service_account
 creds_dict = st.secrets["service_account"]
 credentials = service_account.Credentials.from_service_account_info(creds_dict, scopes=scope)
 client = gspread.authorize(credentials)
-client = gspread.authorize(creds)
+creds_dict = st.secrets["service_account"]
+credentials = service_account.Credentials.from_service_account_info(creds_dict, scopes=scope)
+client = gspread.authorize(credentials)
 
 # Åbn ark – erstat med dit eget Sheet ID
 SHEET_ID = "1qGfpJ5wTqLAFtDmKaauOXouAwMKWhIBg9bIyWPEbkzc"  # kun ID-delen fra URL
