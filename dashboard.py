@@ -8,15 +8,10 @@ import numpy as np
 # --- Indlæs og forbered data ---
 import gspread
 from gspread_dataframe import get_as_dataframe
-from oauth2client.service_account import ServiceAccountCredentials
 
 # Opsætning af adgang
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 from google.oauth2 import service_account
-
-creds_dict = st.secrets["service_account"]
-credentials = service_account.Credentials.from_service_account_info(creds_dict, scopes=scope)
-client = gspread.authorize(credentials)
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = st.secrets["service_account"]
 credentials = service_account.Credentials.from_service_account_info(creds_dict, scopes=scope)
 client = gspread.authorize(credentials)
@@ -42,7 +37,7 @@ def kategoriser(produkt):
         return "Youtube"
     elif "leadpage" in produkt:
         return "Leadpage"
-    elif "sst" in produkt or "server-side" in produkt:
+    elif any(s in produkt for s in ["sst", "server-side", "server side", "server-side tracking"]):
         return "SST"
     else:
         return "Andet"
