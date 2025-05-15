@@ -61,7 +61,7 @@ produkt_salg = df.groupby('Produktkategori')['Pris'].sum()
 
 # --- Layout i Streamlit ---
 st.set_page_config(page_title="Google Ads Dashboard", layout="wide")
-st.markdown("<h1 style='text-align: center;margin-top:-30px'>Google Ads - Q2 Mål</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;margin-top:-50px;margin-bottom:-80px'>Google Ads - Q2 Mål</h1>", unsafe_allow_html=True)
 from streamlit_autorefresh import st_autorefresh
 
 # Auto-refresh hver 300 sekunder (5 min)
