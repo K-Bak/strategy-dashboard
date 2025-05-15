@@ -142,6 +142,7 @@ for i, navn in enumerate(produkt_rækkefølge):
 # --- Total og progressbar ---
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown(f"""
+<div style="font-size:16px;">&nbsp;</div>
 <div style="text-align:center; font-size:24px; font-weight:bold; margin-bottom:10px;">
   Samlet: {samlet:,.0f} kr.
 </div>
