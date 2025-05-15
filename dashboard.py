@@ -35,12 +35,15 @@ df['Pris'] = pd.to_numeric(df['Pris'], errors='coerce')
 
 # --- Produktgruppering ---
 def kategoriser(produkt):
-    if produkt == "Microsoft Ads":
+    produkt = str(produkt).lower()
+    if "microsoft ads" in produkt:
         return "Microsoft Ads"
-    elif "Youtube" in produkt:
+    elif "youtube" in produkt:
         return "Youtube"
-    elif produkt == "Leadpage":
+    elif "leadpage" in produkt:
         return "Leadpage"
+    elif "sst" in produkt or "server-side" in produkt:
+        return "SST"
     else:
         return "Andet"
 
@@ -64,6 +67,10 @@ produkt_salg = df.groupby('Produktkategori')['Pris'].sum()
 # --- Layout i Streamlit ---
 st.set_page_config(page_title="Google Ads Dashboard", layout="wide")
 st.markdown("<h1 style='text-align: center;margin-top:-30px'>Google Ads - Q2 Mål</h1>", unsafe_allow_html=True)
+from streamlit_autorefresh import st_autorefresh
+
+# Auto-refresh hver 600 sekunder (10 min)
+st_autorefresh(interval=600_000, key="datarefresh")
 
 col1, col2 = st.columns([2, 1])
 
