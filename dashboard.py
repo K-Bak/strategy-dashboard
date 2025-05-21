@@ -28,8 +28,9 @@ solgte_df["Dato for salg"] = pd.to_datetime(solgte_df["Dato for salg"], dayfirst
 solgte_df["Uge"] = solgte_df["Dato for salg"].dt.isocalendar().week
 solgte_df["Pris"] = pd.to_numeric(solgte_df["Pris"], errors="coerce")
 
-tilbud_df = df[["Produkt", "Pris", "Dato for tilbud"]].dropna(subset=["Produkt", "Pris", "Dato for tilbud"])
-tilbud_df["Pris"] = pd.to_numeric(tilbud_df["Pris"], errors="coerce")
+tilbud_df = df[["Produkt tilbudt", "Tilbudspris", "Dato for tilbud"]].dropna(subset=["Produkt tilbudt", "Tilbudspris", "Dato for tilbud"])
+tilbud_df["Dato for tilbud"] = pd.to_datetime(tilbud_df["Dato for tilbud"], dayfirst=True, errors="coerce")
+tilbud_df["Uge"] = tilbud_df["Dato for tilbud"].dt.isocalendar().week
 
 # --- Konstanter ---
 total_goal = 198905
@@ -68,7 +69,12 @@ with col1:
         ax.set_facecolor('none')
         for spine in ax.spines.values():
             spine.set_visible(False)
+
         ugevis.plot(ax=ax, marker='o', label='Realisering', color='steelblue')
+
+        # Tilbud sendt (stiplet grå linje)
+        tilbud_ugevis = tilbud_df.groupby("Uge")["Tilbudspris"].sum().reindex(alle_uger, fill_value=0)
+        ax.plot([f"Uge {u}" for u in tilbud_ugevis.index], tilbud_ugevis.values, linestyle='dashed', color='gray', alpha=0.5, label='Tilbud sendt')
 
         ax.axhline(y=restmaal, color='red', linestyle='--', label='Ugemål')
 
@@ -122,18 +128,18 @@ for i, (navn, row) in enumerate(reversed(list(produkt_data.iterrows()))):
     <div style="text-align:center; padding:10px; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
       <div style="font-size:18px; font-weight:bold;">{navn}</div>
       <div style="font-size:16px;">{int(row['count'])} solgt</div>
-      <div style="font-size:24px; font-weight:normal;">{row['sum']:,.0f} kr.</div>
+      <div style="font-size:24px; font-weight:normal;">{format(row['sum'], ',.0f').replace(',', '.')} kr.</div>
     </div>
     """, unsafe_allow_html=True)
 
 # Tilbudsboks
 antal_tilbud = len(tilbud_df)
-total_tilbud_beloeb = tilbud_df["Pris"].sum()
+total_tilbud_beloeb = tilbud_df["Tilbudspris"].sum()
 cols[3].markdown(f"""
 <div style="text-align:center; padding:10px; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
   <div style="font-size:18px; font-weight:bold;">Tilbud sendt</div>
   <div style="font-size:16px;">{antal_tilbud} stk</div>
-  <div style="font-size:24px; font-weight:normal;">{total_tilbud_beloeb:,.0f} kr.</div>
+  <div style="font-size:24px; font-weight:normal;">{format(total_tilbud_beloeb, ',.0f').replace(',', '.')} kr.</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -142,7 +148,7 @@ cols[4].markdown(f"""
 <div style="text-align:center; padding:10px; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
   <div style="font-size:18px; font-weight:bold;">Antal produkter solgt</div>
   <div style="font-size:16px;">{total_count} solgt</div>
-  <div style="font-size:24px; font-weight:normal;">{solgt_sum:,.0f} kr.</div>
+  <div style="font-size:24px; font-weight:normal;">{format(solgt_sum, ',.0f').replace(',', '.')} kr.</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -150,10 +156,10 @@ cols[4].markdown(f"""
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown(f"""
 <div style="text-align:center; font-size:24px; font-weight:bold; margin-bottom:10px;">
-  Samlet: {solgt_sum:,.0f} kr.
+  Samlet: {format(solgt_sum, ',.0f').replace(',', '.')} kr.
 </div>
 """, unsafe_allow_html=True)
-progress_text = f"{solgt_sum:,.0f} kr. / {total_goal:,.0f} kr."
+progress_text = f"{format(solgt_sum, ',.0f').replace(',', '.')} kr. / {format(total_goal, ',.0f').replace(',', '.')} kr."
 st.markdown(f"""
 <div style="margin-top: 20px;">
   <div style="font-size:16px; text-align:center; margin-bottom:4px;">
