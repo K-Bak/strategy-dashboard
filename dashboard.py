@@ -23,28 +23,31 @@ df = get_as_dataframe(worksheet, evaluate_formulas=True)
 
 # --- Forbered data ---
 df = df.dropna(how="all")
-df = df[["Produkt", "Pris", "Dato for salg"]].dropna(subset=["Produkt", "Pris"])
-df["Dato for salg"] = pd.to_datetime(df["Dato for salg"], dayfirst=True, errors="coerce")
-df["Uge"] = df["Dato for salg"].dt.isocalendar().week
-df["Pris"] = pd.to_numeric(df["Pris"], errors="coerce")
+solgte_df = df[["Produkt", "Pris", "Dato for salg"]].dropna(subset=["Produkt", "Pris"])
+solgte_df["Dato for salg"] = pd.to_datetime(solgte_df["Dato for salg"], dayfirst=True, errors="coerce")
+solgte_df["Uge"] = solgte_df["Dato for salg"].dt.isocalendar().week
+solgte_df["Pris"] = pd.to_numeric(solgte_df["Pris"], errors="coerce")
+
+tilbud_df = df[["Produkt", "Pris", "Dato for tilbud"]].dropna(subset=["Produkt", "Pris", "Dato for tilbud"])
+tilbud_df["Pris"] = pd.to_numeric(tilbud_df["Pris"], errors="coerce")
 
 # --- Konstanter ---
-total_goal = 100000  # Opdater hvis Strategy har andet mål
-total_sum = df["Pris"].sum()
-total_count = len(df)
-procent = total_sum / total_goal if total_goal else 0
+total_goal = 198905
+solgt_sum = solgte_df["Pris"].sum()
+total_count = len(solgte_df)
+procent = solgt_sum / total_goal if total_goal else 0
 
 # --- Ugeopsætning ---
 start_uge = 18
 slut_uge = 26
 alle_uger = list(range(start_uge, slut_uge + 1))
-ugevis = df.groupby("Uge")["Pris"].sum().reindex(alle_uger, fill_value=0)
+ugevis = solgte_df.groupby("Uge")["Pris"].sum().reindex(alle_uger, fill_value=0)
 ugevis.index = ugevis.index.map(lambda u: f"Uge {u}")
 
 # --- Dynamisk ugemål ---
 nu_uge = datetime.now().isocalendar().week
 resterende_uger = len([u for u in alle_uger if u > nu_uge])
-manglende_beloeb = max(total_goal - total_sum, 0)
+manglende_beloeb = max(total_goal - solgt_sum, 0)
 restmaal = manglende_beloeb / resterende_uger if resterende_uger > 0 else manglende_beloeb
 
 # --- Layout ---
@@ -104,21 +107,18 @@ with col2:
         ax2.text(0, 0, f"{procent*100:.2f}%", ha='center', va='center', fontsize=20)
         st.pyplot(fig2)
 
-# --- Top 4 produkter + totalboks ---
+# --- Produkter + tilbudsboks + totalboks ---
 st.markdown("<br>", unsafe_allow_html=True)
-
-# Definer alle relevante produkter til Strategy
 produktliste = [
     "SEO Ai Boost", "Linkbuilding", "Content pakker", "GBP", "Bing Business", "Maps Optimering",
     "Microsoft Ads", "Youtube", "SST", "Leadpage", "Klaviyo", "Lead Ads", "Ekstra kampagne", "Xtra Visual"
 ]
 
-# Aggreger og sortér alle produkter på sum, selv de ikke-solgte
-produkt_data = df.groupby("Produkt")["Pris"].agg(["sum", "count"]).reindex(produktliste, fill_value=0).sort_values("sum", ascending=False).head(4)
-
+produkt_data = solgte_df.groupby("Produkt")["Pris"].agg(["sum", "count"]).reindex(produktliste, fill_value=0).sort_values("sum", ascending=False).head(3)
 cols = st.columns(5)
+
 for i, (navn, row) in enumerate(reversed(list(produkt_data.iterrows()))):
-    cols[3 - i].markdown(f"""
+    cols[2 - i].markdown(f"""
     <div style="text-align:center; padding:10px; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
       <div style="font-size:18px; font-weight:bold;">{navn}</div>
       <div style="font-size:16px;">{int(row['count'])} solgt</div>
@@ -126,11 +126,23 @@ for i, (navn, row) in enumerate(reversed(list(produkt_data.iterrows()))):
     </div>
     """, unsafe_allow_html=True)
 
+# Tilbudsboks
+antal_tilbud = len(tilbud_df)
+total_tilbud_beloeb = tilbud_df["Pris"].sum()
+cols[3].markdown(f"""
+<div style="text-align:center; padding:10px; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+  <div style="font-size:18px; font-weight:bold;">Tilbud sendt</div>
+  <div style="font-size:16px;">{antal_tilbud} stk</div>
+  <div style="font-size:24px; font-weight:normal;">{total_tilbud_beloeb:,.0f} kr.</div>
+</div>
+""", unsafe_allow_html=True)
+
+# Totalboks
 cols[4].markdown(f"""
 <div style="text-align:center; padding:10px; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
   <div style="font-size:18px; font-weight:bold;">Antal produkter solgt</div>
   <div style="font-size:16px;">{total_count} solgt</div>
-  <div style="font-size:24px; font-weight:normal;">{total_sum:,.0f} kr.</div>
+  <div style="font-size:24px; font-weight:normal;">{solgt_sum:,.0f} kr.</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -138,10 +150,10 @@ cols[4].markdown(f"""
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown(f"""
 <div style="text-align:center; font-size:24px; font-weight:bold; margin-bottom:10px;">
-  Samlet: {total_sum:,.0f} kr.
+  Samlet: {solgt_sum:,.0f} kr.
 </div>
 """, unsafe_allow_html=True)
-progress_text = f"{total_sum:,.0f} kr. / {total_goal:,.0f} kr."
+progress_text = f"{solgt_sum:,.0f} kr. / {total_goal:,.0f} kr."
 st.markdown(f"""
 <div style="margin-top: 20px;">
   <div style="font-size:16px; text-align:center; margin-bottom:4px;">
