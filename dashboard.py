@@ -9,6 +9,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import gspread
 from gspread_dataframe import get_as_dataframe
 from google.oauth2 import service_account
+from streamlit_autorefresh import st_autorefresh
 
 # ---------- Google Sheets-forbindelse -----------------------------------------
 scope = ["https://spreadsheets.google.com/feeds",
@@ -30,46 +31,45 @@ df["Pris"]  = pd.to_numeric(df["Pris"], errors="coerce")
 df["Uge"]   = df["Dato"].dt.isocalendar().week
 df["År"]    = df["Dato"].dt.year
 
-# ---------- Konstanter --------------------------------------------------------
-YEAR_GOAL = 350_000      # årsmål 2025
-Q3_GOAL   = 100_000      # mål for uge 27-40
-START_UGE = 27
-SLUT_UGE  = 40
+# ---------- Konstanter (Q4) ---------------------------------------------------
+YEAR_GOAL = 200_000      # årsmål 2025
+Q4_GOAL   = 109_500      # Q4 mål (uge 40-51)
+START_UGE = 40
+SLUT_UGE  = 51
 YEAR      = 2025
 
 # ---------- Filtre ------------------------------------------------------------
-mask_q3   = df["Uge"].between(START_UGE, SLUT_UGE) & (df["År"] == YEAR)
+mask_q4   = df["Uge"].between(START_UGE, SLUT_UGE) & (df["År"] == YEAR)
 mask_year = df["År"] == YEAR
 
-df_q3      = df[mask_q3]
-solgte_q3  = df_q3[df_q3["Status"] == "Godkendt"]
-tilbud_q3  = df_q3[df_q3["Status"] == "Tilbud"]
-afslag_q3  = df_q3[df_q3["Status"] == "Afslag"]
+df_q4      = df[mask_q4]
+solgte_q4  = df_q4[df_q4["Status"] == "Godkendt"]
+tilbud_q4  = df_q4[df_q4["Status"] == "Tilbud"]
+afslag_q4  = df_q4[df_q4["Status"] == "Afslag"]
 
 solgte_year = df[mask_year & (df["Status"] == "Godkendt")]
 
 # ---------- KPI-beregninger ---------------------------------------------------
-q3_sum   = solgte_q3["Pris"].sum()
-q3_count = len(solgte_q3)
-q3_pct   = q3_sum / Q3_GOAL if Q3_GOAL else 0
+q4_sum   = solgte_q4["Pris"].sum()
+q4_count = len(solgte_q4)
+q4_pct   = q4_sum / Q4_GOAL if Q4_GOAL else 0
 
 alle_uger = list(range(START_UGE, SLUT_UGE + 1))
-ugevis_q3 = (solgte_q3.groupby("Uge")["Pris"]
+ugevis_q4 = (solgte_q4.groupby("Uge")["Pris"]
              .sum().reindex(alle_uger, fill_value=0))
-ugevis_q3.index = ugevis_q3.index.map(lambda u: f"Uge {u}")
+ugevis_q4.index = ugevis_q4.index.map(lambda u: f"Uge {u}")
 
-# Dynamisk ugemål (rest af Q3)
+# Dynamisk ugemål (rest af Q4)
 nu_uge = datetime.now().isocalendar().week
 resterende_uger = len([u for u in alle_uger if u > nu_uge])
-restmaal = max(Q3_GOAL - q3_sum, 0) / resterende_uger if resterende_uger else 0
+restmaal = max(Q4_GOAL - q4_sum, 0) / resterende_uger if resterende_uger else 0
 
 # ---------- Layout ------------------------------------------------------------
 st.markdown(
     "<h1 style='text-align:center;margin-top:-50px;margin-bottom:-80px'>"
-    "Strategy – Q3 (uge 27-40)</h1>", unsafe_allow_html=True)
+    "Strategy – Q4 (uge 40-51)</h1>", unsafe_allow_html=True)
 
-from streamlit_autorefresh import st_autorefresh
-st_autorefresh(interval=300_000, key="refresh_strategy_q3")
+st_autorefresh(interval=300_000, key="refresh_strategy_q4")
 
 col1, col2 = st.columns([2, 1])
 
@@ -82,11 +82,11 @@ with col1:
         for s in ax.spines.values():
             s.set_visible(False)
 
-        ugevis_q3.plot(ax=ax, marker="o", label="Realisering", color="steelblue")
+        ugevis_q4.plot(ax=ax, marker="o", label="Realisering", color="steelblue")
 
-        tilbud_ugevis = (tilbud_q3.groupby("Uge")["Pris"]
+        tilbud_ugevis = (tilbud_q4.groupby("Uge")["Pris"]
                          .sum().reindex(alle_uger, fill_value=0))
-        afslag_ugevis = (afslag_q3.groupby("Uge")["Pris"]
+        afslag_ugevis = (afslag_q4.groupby("Uge")["Pris"]
                          .sum().reindex(alle_uger, fill_value=0))
 
         ax.plot([f"Uge {u}" for u in tilbud_ugevis.index], tilbud_ugevis.values,
@@ -97,7 +97,7 @@ with col1:
         ax.axhline(restmaal, color="red", ls="--", label="Ugemål")
         if START_UGE <= nu_uge <= SLUT_UGE:
             try:
-                pos = list(ugevis_q3.index).index(f"Uge {nu_uge}")
+                pos = list(ugevis_q4.index).index(f"Uge {nu_uge}")
                 ax.axvspan(pos-.1, pos+.1, color="lightblue", alpha=.2,
                            label="Nuværende uge")
             except ValueError:
@@ -115,14 +115,14 @@ with col2:
         ax2.set_xlim(-1.2, 1.2); ax2.set_ylim(-1.2, 1.2)
 
         cmap = LinearSegmentedColormap.from_list("blue", ["#1f77b4", "#66b3ff"])
-        ax2.add_patch(Wedge((0, 0), 1, 90, 90 + q3_pct*360,
-                            width=.3, facecolor=cmap(.5)))
-        ax2.add_patch(Wedge((0, 0), 1, 90 + q3_pct*360, 450,
-                            width=.3, facecolor="#e0e0e0"))
-        ax2.text(0, 0, f"{q3_pct*100:.1f}%", ha="center", va="center", fontsize=20)
+        # Grå ring som baggrund
+        ax2.add_patch(Wedge((0, 0), 1, 90, 450, width=.3, facecolor="#e0e0e0"))
+        # Blå bid (progress)
+        ax2.add_patch(Wedge((0, 0), 1, 90, 90 + q4_pct*360, width=.3, facecolor=cmap(.5)))
+        ax2.text(0, 0, f"{q4_pct*100:.1f}%", ha="center", va="center", fontsize=20)
         st.pyplot(fig2)
 
-        g, a, t = len(solgte_q3), len(afslag_q3), len(tilbud_q3)
+        g, a, t = len(solgte_q4), len(afslag_q4), len(tilbud_q4)
         total_tilbud = g + a + t
         hitrate = g / total_tilbud * 100 if total_tilbud else 0
         st.markdown(f"""
@@ -152,37 +152,37 @@ for i, (navn, row) in enumerate(reversed(list(prod_year.iterrows()))):
 </div>
 """, unsafe_allow_html=True)
 
-# Tilbudsboks (Q3)
+# Tilbudsboks (Q4)
 cols[3].markdown(f"""
 <div style='text-align:center;padding:10px;background:white;border-radius:10px;
             box-shadow:0 2px 8px rgba(0,0,0,0.05);'>
-  <div style='font-size:18px;font-weight:bold;'>Tilbud sendt (Q3)</div>
-  <div style='font-size:16px;'>{len(tilbud_q3)} stk</div>
-  <div style='font-size:24px;'>{tilbud_q3['Pris'].sum():,.0f} kr.</div>
+  <div style='font-size:18px;font-weight:bold;'>Tilbud sendt (Q4)</div>
+  <div style='font-size:16px;'>{len(tilbud_q4)} stk</div>
+  <div style='font-size:24px;'>{tilbud_q4['Pris'].sum():,.0f} kr.</div>
 </div>
 """, unsafe_allow_html=True)
 
-# Solgt-boks (Q3)
+# Solgt-boks (Q4)
 cols[4].markdown(f"""
 <div style='text-align:center;padding:10px;background:white;border-radius:10px;
             box-shadow:0 2px 8px rgba(0,0,0,0.05);'>
-  <div style='font-size:18px;font-weight:bold;'>Produktsalg (Q3)</div>
-  <div style='font-size:16px;'>{q3_count} solgt</div>
-  <div style='font-size:24px;'>{q3_sum:,.0f} kr.</div>
+  <div style='font-size:18px;font-weight:bold;'>Produktsalg (Q4)</div>
+  <div style='font-size:16px;'>{q4_count} solgt</div>
+  <div style='font-size:24px;'>{q4_sum:,.0f} kr.</div>
 </div>
 """, unsafe_allow_html=True)
 
 # ---------------- Progress-barer ---------------------------------------------
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Q3
+# Q4
 st.markdown(f"""
 <div style='text-align:center;font-size:20px;font-weight:bold;margin-bottom:6px;'>
-  Q3 mål: {q3_sum:,.0f} / {Q3_GOAL:,.0f} kr.
+  Q4 mål: {q4_sum:,.0f} / {Q4_GOAL:,.0f} kr.
 </div>
 <div style='background:#e0e0e0;border-radius:10px;height:30px;'>
   <div style='background:linear-gradient(90deg,#1f77b4,#66b3ff);
-              width:{q3_pct*100:.1f}%;height:30px;border-radius:10px;'></div>
+              width:{q4_pct*100:.1f}%;height:30px;border-radius:10px;'></div>
 </div>
 """, unsafe_allow_html=True)
 
